@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
+import numpy as np
 import csv
 import matplotlib.pyplot as plt
+import json
+from pathlib import Path
 
 man = 'Mann'
 woman = 'Kvinne'
@@ -110,39 +113,93 @@ def filterRowsMatching(rows, key, value):
             vals.append(row)
     return vals
 
+dumpFile='ignoredAwnsers.json'
+def getBadAwnsers():
+    badAwnsers={}
+    if Path(dumpFile).is_file():
+        with open(dumpFile, "r", encoding="utf8") as f:
+            val=f.read()
+            if val:
+                badAwnsers = json.loads(val)
+            f.close()
+    return badAwnsers
+
 
 def sanetize(vals):
-    filtered = []
+    ignoredResponses=getBadAwnsers()
     for q in vals[0].keys():
+        print('\n\n\n'+q)
+        if not q in ignoredResponses:
+            ignoredResponses[q]=[]
         c = countSame(extractColumn(vals, q))
-        i = 0
-        print(q)
-        for k, v in c.items():
-            print(str(i)+': '+str(v)+': '+str(k))
-            i += 1
-        print(input('A, b, c'))
-    return filtered
+        keys = list(c.keys())
+        for i in range(len(keys)):
+            k = keys[i]
+            v = c[k]
+            removedText="(filtered): " if k in ignoredResponses[q] else ""
+            print(removedText+str(i)+': '+str(v)+': '+str(k))
+        indexesToFilterOut = input('\nType a comma separated list with no spaces of the ones you want removed: ')
+        if not indexesToFilterOut:
+            print('None were removed')
+            continue
+        for i in map(int, indexesToFilterOut.split(',')):
+            ignoredResponses[q].append(keys[i])
+            print(ignoredResponses)
+            with open(dumpFile, "w+", encoding="utf8") as f:
+                json.dump(ignoredResponses, f, indent=2, ensure_ascii=False)
+                f.close()
+    return ignoredResponses
 
-def drawQuestionToAgeRelationship():
+
+def drawQuestionToAgeRelationship(vals, title):
+    # data to plot
+    n_groups = 4
+    means_frank = (90, 55, 40, 65)
+    means_guido = (85, 62, 54, 20)
+
+    # create plot
+    fig, ax = plt.subplots()
+    index = np.arange(n_groups)
+    bar_width = 0.35
+    opacity = 0.8
+
+    rects1 = plt.bar(index, means_frank, bar_width,
+                     alpha=opacity,
+                     color='b',
+                     label='Frank')
+
+    rects2 = plt.bar(index + bar_width, means_guido, bar_width,
+                     alpha=opacity,
+                     color='g',
+                     label='Guido')
+
+    plt.xlabel('Person')
+    plt.ylabel('Scores')
+    plt.title('Scores by person')
+    plt.xticks(index + bar_width, ('A', 'B', 'C', 'D'))
+    plt.legend()
+
+    plt.tight_layout()
     return
+
 
 def main():
     with open('data.csv', encoding="utf-8") as csvFile:
-        vals = sanetize(list(csv.DictReader(csvFile)))
+        vals = list(csv.DictReader(csvFile))
+        #vals=sanetize(vals)#get rid of noisy and negligable awnsers
         #drawGenderDiagram(vals, woman, 'Kvinnelig aldersgruppe')
         #drawGenderDiagram(vals, man, 'Mannlig aldersgruppe')
         #drawGenderRelationDiagram(vals, 'Kjønnsfordeling i undersøkelsen')
-        drawConfirmationQuestionDiagram(
-            vals, 'Kontrollspørsmål: Svar "Nei"', 'Kontrollspørsmål hvor man er instruert til å svare nei')
-        maleRows = filterRowsMatching(vals, 'Kjønn', 'Mann')
-        femaleRows = filterRowsMatching(vals, 'Kjønn', 'Kvinne')
-        drawQuestionToAgeRelationship(vals, 'Forskjellig respons fra forskjellige aldersgrupper')
-        #for question in vals[0].keys():
+        #drawConfirmationQuestionDiagram(
+        #    vals, 'Kontrollspørsmål: Svar "Nei"', 'Kontrollspørsmål hvor man er instruert til å svare nei')
+        #maleRows = filterRowsMatching(vals, 'Kjønn', 'Mann')
+        #femaleRows = filterRowsMatching(vals, 'Kjønn', 'Kvinne')
+        #drawQuestionToAgeRelationship(vals, 'Forskjellig respons fra forskjellige aldersgrupper')
+        # for question in vals[0].keys():
         #    drawConfirmationQuestionDiagram(
         #        maleRows, question, 'Hva menn svarte på '+question)
         #    drawConfirmationQuestionDiagram(
         #        femaleRows, question, 'Hva kvinner svarte på '+question)
         plt.show()
-
 
 main()
