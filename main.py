@@ -18,6 +18,12 @@ colorOrder = [
     'blueviolet',
     'brown',
     'indigo',
+    'purple',
+    'magenta',
+    'cyan',
+    'pink',
+    'lightgray',
+    'goldenrod',
 ]
 
 # ageRanges = {
@@ -47,13 +53,10 @@ def getAgeRangeForGender(vals, gender):
         bucket[config['range']] = 0
     for val in vals:
         age = int(val['Alder'])
-        try:
-            ageRange = ageRanges[age]['range'] if age else None
-            if ageRange:
-                if gender == val['Kjønn']:
-                    bucket[ageRange] += 1
-        except KeyError:
-            print('Fount bad age: '+str(age))
+        ageRange = ageRanges[age]['range'] if age else None
+        if ageRange:
+            if gender == val['Kjønn']:
+                bucket[ageRange] += 1
     return bucket
 
 
@@ -140,7 +143,13 @@ def getBadAwnsers():
     return badAwnsers
 
 
-def sanetize(vals):
+def writeToJson(val, name):
+    with open(name, "w+", encoding="utf8") as f:
+        json.dump(val, f, indent=2, ensure_ascii=False)
+        f.close()
+
+
+def refreshSanetizationFile(vals):
     ignoredResponses = getBadAwnsers()
     for q in vals[0].keys():
         print('\n\n\n'+q)
@@ -160,10 +169,7 @@ def sanetize(vals):
             continue
         for i in map(int, indexesToFilterOut.split(',')):
             ignoredResponses[q].append(keys[i])
-            print(ignoredResponses)
-            with open(dumpFile, "w+", encoding="utf8") as f:
-                json.dump(ignoredResponses, f, indent=2, ensure_ascii=False)
-                f.close()
+    writeToJson(ignoredResponses, dumpFile)
     return ignoredResponses
 
 
@@ -172,63 +178,108 @@ def drawQuestionToAgeRelationships(vals, title):
         drawQuestionToAgeRelationship(vals, q, title)
 
 
-def drawQuestionToAgeRelationship(vals, question, title):
+def ageSanetization(vals):
+    sanetized = []
+    for val in vals:
+        try:
+            age = int(val['Alder'])
+            if ageRanges[age]:
+                sanetized.append(val)
+        except KeyError:
+            print('Found bad age: '+str(age))
+    return sanetized
+
+
+def groupRowsByAge(vals):
     ageBucket = {}
+    for c in ageRangeMap.values():
+        ageBucket[c['range']] = []
 
     for val in vals:
-        if val['Alder'] in []:
-            return
+        age = int(val['Alder'])
+        r = ageRanges[age]['range']
+        ageBucket[r].append(val)
 
-    labels = []
-    sizes = []
+    for k, v in ageBucket.items():
+        if len(v) == 0:
+            ageBucket.pop(k, None)
 
-    for k, v in countSame(extractColumn(vals, question)).items():
-        labels.append(k)
-        sizes.append(v)
-    # data to plot
-    n_groups = 4
-    means_frank = (90, 55, 40, 65)
-    means_guido = (85, 62, 54, 20)
+    return ageBucket
 
-    # create plot
-    fig, ax = plt.subplots()
+
+def filrterList(vals, excludedVals):
+    return filter(lambda val: val not in excludedVals, vals)
+
+
+def drawQuestionToAgeRelationship(vals, question, title):
+    ageBucket = groupRowsByAge(vals)
+    badAwnsers = getBadAwnsers()
+
+    plt.figure(question+'_'+title)
+    n_groups = len(ageBucket.keys())
+    #fig, ax = plt.subplots()
     index = np.arange(n_groups)
     bar_width = 0.35
     opacity = 0.8
 
-    rects1 = plt.bar(index, means_frank, bar_width,
-                     alpha=opacity,
-                     color='b',
-                     label='Frank')
+    bucketLabels = ageBucket.keys()
+    validAwnsers = countSame(filrterList(extractColumn(
+        vals, question), badAwnsers[question])).keys()
+    xAxisValueAwnserMap = {}
+    for a in validAwnsers:
+        xAxisValueAwnserMap[a] = []
+    for ageRange in bucketLabels:
+        rows = ageBucket[ageRange]
+        awnserCountMap = countSame(filrterList(
+            extractColumn(rows, question), badAwnsers[question]))
+        for awnser in validAwnsers:
+            count = awnserCountMap[awnser] if awnser in awnserCountMap else 0
+            xAxisValueAwnserMap[awnser].append(count)
 
-    rects2 = plt.bar(index + bar_width, means_guido, bar_width,
-                     alpha=opacity,
-                     color='g',
-                     label='Guido')
+    for i, a in enumerate(validAwnsers):
+        plt.bar(index + (float(i)*bar_width), xAxisValueAwnserMap[a], bar_width,
+                alpha=opacity,
+                color=colorOrder[i],
+                label=a)
 
-    plt.xlabel('Alternativ')
+    plt.suptitle(title)
+    plt.title('Spørsmål: '+question)
+    plt.xlabel('Aldersgruppe')
     plt.ylabel('Stemmer')
-    plt.title(title + question)
-    plt.xticks(index + bar_width, ('A', 'B', 'C', 'D'))
+    plt.xticks(index + bar_width, bucketLabels)
     plt.legend()
-
     plt.tight_layout()
-    return
 
+
+def filterIrelevantQuestions(vals, questions):
+    filtered=[]
+    for val in vals:
+        for q in questions:
+            val.pop(q, None)
+            filtered.append(val)
+    return filtered
 
 def main():
     with open('data.csv', encoding="utf-8") as csvFile:
         vals = list(csv.DictReader(csvFile))
-        # vals=sanetize(vals)#get rid of noisy and negligable awnsers
-        drawGenderDiagram(vals, woman, 'Kvinnelig aldersgruppe')
-        drawGenderDiagram(vals, man, 'Mannlig aldersgruppe')
-        drawGenderRelationDiagram(vals, 'Kjønnsfordeling i undersøkelsen')
+        vals = ageSanetization(vals)
+        #refreshSanetizationFile(vals)
+        #drawGenderDiagram(vals, woman, 'Kvinnelig aldersgruppe')
+        #drawGenderDiagram(vals, man, 'Mannlig aldersgruppe')
+        #drawGenderRelationDiagram(vals, 'Kjønnsfordeling i undersøkelsen')
         # drawConfirmationQuestionDiagram(
         #    vals, 'Kontrollspørsmål: Svar "Nei"', 'Kontrollspørsmål hvor man er instruert til å svare nei')
         #maleRows = filterRowsMatching(vals, 'Kjønn', 'Mann')
         #femaleRows = filterRowsMatching(vals, 'Kjønn', 'Kvinne')
         drawQuestionToAgeRelationship(
-            vals, 'Alder', 'Forskjellig respons fra forskjellige aldersgrupper')
+            vals, 'Hvordan føler du deg i dag?', 'Forskjellig respons fra forskjellige aldersgrupper')
+        
+        #badQuestions=['Har du noe på hjertet?', 'Tidsmerke', 'Alder']
+        #for q in filrterList(vals[0].keys(), badQuestions):
+        #    print(q)
+        #    drawQuestionToAgeRelationship(
+        #        vals, q, 'Forskjellig respons fra forskjellige aldersgrupper')
+        
         #drawQuestionToAgeRelationships(vals, 'Forskjellig respons fra forskjellige aldersgrupper')
         # for question in vals[0].keys():
         #    drawConfirmationQuestionDiagram(
