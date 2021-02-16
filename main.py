@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import json
 from pathlib import Path
 from range_key_dict import RangeKeyDict
+from matplotlib.backends.backend_pdf import PdfPages
 
 man = 'Mann'
 woman = 'Kvinne'
@@ -173,8 +174,8 @@ def refreshSanetizationFile(vals):
     return ignoredResponses
 
 
-def drawQuestionToAgeRelationships(vals, title):
-    for q in vals[0].keys():
+def drawQuestionToAgeRelationships(vals, badQuestions, title):
+    for q in filrterList(vals[0].keys(), badQuestions):
         drawQuestionToAgeRelationship(vals, q, title)
 
 
@@ -277,35 +278,37 @@ def filterIrelevantQuestions(vals, questions):
             filtered.append(val)
     return filtered
 
+def saveFigsToPdf():
+        pdf=PdfPages('output.pdf')
+        for fig in range(1, plt.gcf().number + 1): ## will open an empty extra figure :(
+            pdf.savefig( fig )
+        pdf.close()
+
 def main():
     with open('data.csv', encoding="utf-8") as csvFile:
         vals = list(csv.DictReader(csvFile))
         vals = ageSanetization(vals)
         #refreshSanetizationFile(vals)
-        #drawGenderDiagram(vals, woman, 'Kvinnelig aldersgruppe')
-        #drawGenderDiagram(vals, man, 'Mannlig aldersgruppe')
-        #drawGenderRelationDiagram(vals, 'Kjønnsfordeling i undersøkelsen')
-        # drawConfirmationQuestionDiagram(
-        #    vals, 'Kontrollspørsmål: Svar "Nei"', 'Kontrollspørsmål hvor man er instruert til å svare nei')
+        
+        drawGenderDiagram(vals, woman, 'Kvinnelig aldersgruppe')
+        drawGenderDiagram(vals, man, 'Mannlig aldersgruppe')
+        drawGenderRelationDiagram(vals, 'Kjønnsfordeling i undersøkelsen')
+        drawConfirmationQuestionDiagram(
+            vals, 'Kontrollspørsmål: Svar "Nei"', 'Kontrollspørsmål hvor man er instruert til å svare nei')
+
+        badQuestions=['Har du noe på hjertet?', 'Tidsmerke', 'Alder']
+        drawQuestionToAgeRelationships(vals, badQuestions, 'Forskjellig respons fra forskjellige aldersgrupper')
+
         #maleRows = filterRowsMatching(vals, 'Kjønn', 'Mann')
         #femaleRows = filterRowsMatching(vals, 'Kjønn', 'Kvinne')
-        
-        #drawQuestionToAgeRelationship(
-        #    vals, 'Hvordan føler du deg i dag?', 'Forskjellig respons fra forskjellige aldersgrupper')
-        
-        badQuestions=['Har du noe på hjertet?', 'Tidsmerke', 'Alder']
-        for q in filrterList(vals[0].keys(), badQuestions):
-            #print(q)
-            drawQuestionToAgeRelationship(
-                vals, q, 'Forskjellig respons fra forskjellige aldersgrupper')
-        
-        #drawQuestionToAgeRelationships(vals, 'Forskjellig respons fra forskjellige aldersgrupper')
-        # for question in vals[0].keys():
+        #for question in vals[0].keys():
         #    drawConfirmationQuestionDiagram(
         #        maleRows, question, 'Hva menn svarte på '+question)
         #    drawConfirmationQuestionDiagram(
         #        femaleRows, question, 'Hva kvinner svarte på '+question)
-        plt.show()
+
+        saveFigsToPdf()
+        #plt.show()
 
 
 main()
