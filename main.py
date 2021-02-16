@@ -4,6 +4,7 @@ import csv
 import matplotlib.pyplot as plt
 import json
 from pathlib import Path
+from range_key_dict import RangeKeyDict
 
 man = 'Mann'
 woman = 'Kvinne'
@@ -19,30 +20,39 @@ colorOrder = [
     'indigo',
 ]
 
-ageRanges = {
-    '0-18': {'range': range(0, 19), 'color': 'red'},
-    '19-25': {'range': range(19, 26), 'color': blue},
-    '26-30': {'range': range(26, 31), 'color': 'olive'},
-    '31-40': {'range': range(31, 41), 'color': 'orange'},
-    '41-50': {'range': range(41, 51), 'color': 'blueviolet'},
-    '51-100': {'range': range(51, 101), 'color': 'brown'},
+#ageRanges = {
+#    '0-18': {'range': range(0, 19), 'color': 'red'},
+#    '19-25': {'range': range(19, 26), 'color': blue},
+#    '26-30': {'range': range(26, 31), 'color': 'olive'},
+#    '31-40': {'range': range(31, 41), 'color': 'orange'},
+#    '41-50': {'range': range(41, 51), 'color': 'blueviolet'},
+#    '51-100': {'range': range(51, 101), 'color': 'brown'},
+#}
+
+ageRangeMap = {
+    (0, 19): {'range': '0-18', 'color': 'red'},
+    (19, 26): {'range': '19-25', 'color': blue},
+    (26, 31): {'range': '26-30', 'color': 'olive'},
+    (31, 41): {'range': '31-40', 'color': 'orange'},
+    (41, 51): {'range': '41-50', 'color': 'blueviolet'},
+    (51, 101): {'range': '51-100', 'color': 'brown'},
 }
 
+ageRanges = RangeKeyDict(ageRangeMap)
 
 def getAgeRangeForGender(vals, gender):
     bucket = {}
-    for r, config in ageRanges.items():
-        bucket[r] = 0
+    for config in ageRangeMap.values():
+        bucket[config['range']] = 0
     for val in vals:
         age = int(val['Alder'])
-        ageRange = None
-        for r, config in ageRanges.items():
-            if age in config['range']:
-                ageRange = r
-                break
-        if ageRange:
-            if gender == val['Kjønn']:
-                bucket[ageRange] += 1
+        try:
+            ageRange = ageRanges[age]['range'] if age else None
+            if ageRange:
+                if gender == val['Kjønn']:
+                    bucket[ageRange] += 1
+        except KeyError:
+            print('Fount bad age: '+str(age))
     return bucket
 
 
@@ -51,10 +61,11 @@ def drawGenderDiagram(vals, gender, title):
     labels = []
     sizes = []
     colors = []
-    for k, v in ageRanges.items():
-        labels.append(k)
-        sizes.append(bucket[k])
-        colors.append(v['color'])
+    for config in ageRangeMap.values():
+        r=config['range']
+        labels.append(r)
+        sizes.append(bucket[r])
+        colors.append(config['color'])
     drawPie(title, sizes, labels, colors)
 
 
@@ -150,8 +161,23 @@ def sanetize(vals):
                 f.close()
     return ignoredResponses
 
+def drawQuestionToAgeRelationships(vals, title):
+    for q in vals[0].keys():
+        drawQuestionToAgeRelationship(vals, q, title)
 
-def drawQuestionToAgeRelationship(vals, title):
+def drawQuestionToAgeRelationship(vals, question, title):
+    ageBucket={}
+
+    for val in vals:
+        if val['Alder'] in []:
+            return
+
+    labels = []
+    sizes = []
+
+    for k, v in countSame(extractColumn(vals, question)).items():
+        labels.append(k)
+        sizes.append(v)
     # data to plot
     n_groups = 4
     means_frank = (90, 55, 40, 65)
@@ -173,9 +199,9 @@ def drawQuestionToAgeRelationship(vals, title):
                      color='g',
                      label='Guido')
 
-    plt.xlabel('Person')
-    plt.ylabel('Scores')
-    plt.title('Scores by person')
+    plt.xlabel('Alternativ')
+    plt.ylabel('Stemmer')
+    plt.title(title + question)
     plt.xticks(index + bar_width, ('A', 'B', 'C', 'D'))
     plt.legend()
 
@@ -187,14 +213,15 @@ def main():
     with open('data.csv', encoding="utf-8") as csvFile:
         vals = list(csv.DictReader(csvFile))
         #vals=sanetize(vals)#get rid of noisy and negligable awnsers
-        #drawGenderDiagram(vals, woman, 'Kvinnelig aldersgruppe')
-        #drawGenderDiagram(vals, man, 'Mannlig aldersgruppe')
-        #drawGenderRelationDiagram(vals, 'Kjønnsfordeling i undersøkelsen')
+        drawGenderDiagram(vals, woman, 'Kvinnelig aldersgruppe')
+        drawGenderDiagram(vals, man, 'Mannlig aldersgruppe')
+        drawGenderRelationDiagram(vals, 'Kjønnsfordeling i undersøkelsen')
         #drawConfirmationQuestionDiagram(
         #    vals, 'Kontrollspørsmål: Svar "Nei"', 'Kontrollspørsmål hvor man er instruert til å svare nei')
         #maleRows = filterRowsMatching(vals, 'Kjønn', 'Mann')
         #femaleRows = filterRowsMatching(vals, 'Kjønn', 'Kvinne')
-        #drawQuestionToAgeRelationship(vals, 'Forskjellig respons fra forskjellige aldersgrupper')
+        drawQuestionToAgeRelationship(vals, 'Alder', 'Forskjellig respons fra forskjellige aldersgrupper')
+        #drawQuestionToAgeRelationships(vals, 'Forskjellig respons fra forskjellige aldersgrupper')
         # for question in vals[0].keys():
         #    drawConfirmationQuestionDiagram(
         #        maleRows, question, 'Hva menn svarte på '+question)
