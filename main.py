@@ -219,13 +219,12 @@ def drawQuestionToAgeRelationship(vals, question, title):
     n_groups = len(ageBucket.keys())
     #fig, ax = plt.subplots()
     index = np.arange(n_groups)
-    bar_width = 0.35
-    opacity = 0.8
 
     bucketLabels = ageBucket.keys()
     validAwnsers = countSame(filrterList(extractColumn(
         vals, question), badAwnsers[question])).keys()
     xAxisValueAwnserMap = {}
+    numBars=0
     for a in validAwnsers:
         xAxisValueAwnserMap[a] = []
     for ageRange in bucketLabels:
@@ -235,9 +234,15 @@ def drawQuestionToAgeRelationship(vals, question, title):
         for awnser in validAwnsers:
             count = awnserCountMap[awnser] if awnser in awnserCountMap else 0
             xAxisValueAwnserMap[awnser].append(count)
+            numBars+=(1/len(bucketLabels))
+    
+    #the value is 0.15 is tuned for 5 bars
+    bar_width = 0.15 / (numBars / 5)
+    opacity = 0.8
 
+    numValidAwnsers=len(validAwnsers)
     for i, a in enumerate(validAwnsers):
-        plt.bar(index + (float(i)*bar_width), xAxisValueAwnserMap[a], bar_width,
+        plt.bar(index + ((i+1)*bar_width), xAxisValueAwnserMap[a], bar_width,
                 alpha=opacity,
                 color=colorOrder[i],
                 label=a)
@@ -246,7 +251,7 @@ def drawQuestionToAgeRelationship(vals, question, title):
     plt.title('Spørsmål: '+question)
     plt.xlabel('Aldersgruppe')
     plt.ylabel('Stemmer')
-    plt.xticks(index + bar_width, bucketLabels)
+    plt.xticks(index + (numValidAwnsers/2*bar_width), bucketLabels)
     plt.legend()
     plt.tight_layout()
 
@@ -271,14 +276,15 @@ def main():
         #    vals, 'Kontrollspørsmål: Svar "Nei"', 'Kontrollspørsmål hvor man er instruert til å svare nei')
         #maleRows = filterRowsMatching(vals, 'Kjønn', 'Mann')
         #femaleRows = filterRowsMatching(vals, 'Kjønn', 'Kvinne')
-        drawQuestionToAgeRelationship(
-            vals, 'Hvordan føler du deg i dag?', 'Forskjellig respons fra forskjellige aldersgrupper')
         
-        #badQuestions=['Har du noe på hjertet?', 'Tidsmerke', 'Alder']
-        #for q in filrterList(vals[0].keys(), badQuestions):
-        #    print(q)
-        #    drawQuestionToAgeRelationship(
-        #        vals, q, 'Forskjellig respons fra forskjellige aldersgrupper')
+        #drawQuestionToAgeRelationship(
+        #    vals, 'Hvordan føler du deg i dag?', 'Forskjellig respons fra forskjellige aldersgrupper')
+        
+        badQuestions=['Har du noe på hjertet?', 'Tidsmerke', 'Alder']
+        for q in filrterList(vals[0].keys(), badQuestions):
+            print(q)
+            drawQuestionToAgeRelationship(
+                vals, q, 'Forskjellig respons fra forskjellige aldersgrupper')
         
         #drawQuestionToAgeRelationships(vals, 'Forskjellig respons fra forskjellige aldersgrupper')
         # for question in vals[0].keys():
