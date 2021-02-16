@@ -210,9 +210,20 @@ def groupRowsByAge(vals):
 def filrterList(vals, excludedVals):
     return filter(lambda val: val not in excludedVals, vals)
 
+def countTotalVotesInBucket(bucket):
+    countBucket={}
+    for bucketKey, rows in bucket.items():
+        countBucket[bucketKey]=len(rows)
+    return countBucket
 
-def drawQuestionToAgeRelationship(vals, question, title):
+def protectedDevide(a, b):
+    if b == 0:
+        return a
+    return a/b
+
+def drawQuestionToAgeRelationship(vals, question, title, asPercentage=True):
     ageBucket = groupRowsByAge(vals)
+    totalVotesBucket=countTotalVotesInBucket(ageBucket)
     badAwnsers = getBadAwnsers()
 
     plt.figure(question+'_'+title)
@@ -228,12 +239,14 @@ def drawQuestionToAgeRelationship(vals, question, title):
     for a in validAwnsers:
         xAxisValueAwnserMap[a] = []
     for ageRange in bucketLabels:
+        totalVotesInAgeRange=totalVotesBucket[ageRange]
         rows = ageBucket[ageRange]
         awnserCountMap = countSame(filrterList(
             extractColumn(rows, question), badAwnsers[question]))
         for awnser in validAwnsers:
             count = awnserCountMap[awnser] if awnser in awnserCountMap else 0
-            xAxisValueAwnserMap[awnser].append(count)
+            percentageOfAgeGroup=protectedDevide(count, totalVotesInAgeRange)*100
+            xAxisValueAwnserMap[awnser].append(percentageOfAgeGroup if asPercentage else count)
             numBars+=(1/len(bucketLabels))
     
     #the value is 0.15 is tuned for 5 bars
@@ -250,7 +263,7 @@ def drawQuestionToAgeRelationship(vals, question, title):
     plt.suptitle(title)
     plt.title('Spørsmål: '+question)
     plt.xlabel('Aldersgruppe')
-    plt.ylabel('Stemmer')
+    plt.ylabel('Prosent av stemmer i respektive aldersgrupper' if asPercentage else 'Stemmer')
     plt.xticks(index + (numValidAwnsers/2*bar_width), bucketLabels)
     plt.legend()
     plt.tight_layout()
@@ -282,7 +295,7 @@ def main():
         
         badQuestions=['Har du noe på hjertet?', 'Tidsmerke', 'Alder']
         for q in filrterList(vals[0].keys(), badQuestions):
-            print(q)
+            #print(q)
             drawQuestionToAgeRelationship(
                 vals, q, 'Forskjellig respons fra forskjellige aldersgrupper')
         
