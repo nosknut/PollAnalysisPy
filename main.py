@@ -45,6 +45,8 @@ ageRangeMap = {
     (51, 101): {'range': '51-100', 'color': 'brown'},
 }
 
+ageRangeLabels=list(map(lambda b:b['range'], ageRangeMap.values()))
+
 ageRanges = RangeKeyDict(ageRangeMap)
 
 
@@ -174,10 +176,9 @@ def refreshSanetizationFile(vals):
     return ignoredResponses
 
 
-def drawQuestionToAgeRelationships(vals, badQuestions, title):
+def drawGroupsForAllQuestions(vals, groups, groupLabel, badQuestions, title):
     for q in filrterList(vals[0].keys(), badQuestions):
-        drawQuestionToAgeRelationship(vals, q, title)
-
+        drawGroupedResults(vals, groups, q, title, groupLabel)
 
 def ageSanetization(vals):
     sanetized = []
@@ -191,22 +192,39 @@ def ageSanetization(vals):
     return sanetized
 
 
-def groupRowsByAge(vals):
-    ageBucket = {}
-    for c in ageRangeMap.values():
-        ageBucket[c['range']] = []
+#def groupRowsByAge(vals):
+#    ageBucket = {}
+#    for c in ageRangeMap.values():
+#        ageBucket[c['range']] = []
+#
+#    for val in vals:
+#        age = int(val['Alder'])
+#        r = ageRanges[age]['range']
+#        ageBucket[r].append(val)
+#
+#    for k, v in ageBucket.items():
+#        if len(v) == 0:
+#            ageBucket.pop(k, None)
+#
+#    return ageBucket
 
-    for val in vals:
-        age = int(val['Alder'])
-        r = ageRanges[age]['range']
-        ageBucket[r].append(val)
+def groupRowsByField(rows, field, buckets, bucketMatcher):
+    bucket = {}
+    for b in buckets:
+        bucket[b]=[]
+    for row in rows:
+        val = row[field]
+        bucketKey=bucketMatcher(val, buckets)
+        if bucketKey in bucket:
+            bucket[bucketKey].append(row)
 
-    for k, v in ageBucket.items():
+    for k, v in bucket.items():
         if len(v) == 0:
-            ageBucket.pop(k, None)
+            bucket.pop(k, None)
+    return bucket
 
-    return ageBucket
-
+def groupRowsByAge(rows):
+    return groupRowsByField(rows, 'Alder', ageRangeLabels, lambda val, buckets: ageRanges[int(val)]['range'])
 
 def filrterList(vals, excludedVals):
     return filter(lambda val: val not in excludedVals, vals)
@@ -222,26 +240,25 @@ def protectedDevide(a, b):
         return a
     return a/b
 
-def drawQuestionToAgeRelationship(vals, question, title, asPercentage=True):
-    ageBucket = groupRowsByAge(vals)
-    totalVotesBucket=countTotalVotesInBucket(ageBucket)
+#orderedRows: normal rows in groups of the x axis ticks
+def drawGroupedResults(unorderedRows, orderedRows, question, title, bucketLabel, asPercentage=True):
+    totalVotesBucket=countTotalVotesInBucket(orderedRows)
     badAwnsers = getBadAwnsers()
-
+    bucketLabels = orderedRows.keys()
     plt.figure(question+'_'+title)
-    n_groups = len(ageBucket.keys())
+    n_groups = len(bucketLabels)
     #fig, ax = plt.subplots()
     index = np.arange(n_groups)
 
-    bucketLabels = ageBucket.keys()
     validAwnsers = countSame(filrterList(extractColumn(
-        vals, question), badAwnsers[question])).keys()
+        unorderedRows, question), badAwnsers[question])).keys()
     xAxisValueAwnserMap = {}
     numBars=0
     for a in validAwnsers:
         xAxisValueAwnserMap[a] = []
     for ageRange in bucketLabels:
         totalVotesInAgeRange=totalVotesBucket[ageRange]
-        rows = ageBucket[ageRange]
+        rows = orderedRows[ageRange]
         awnserCountMap = countSame(filrterList(
             extractColumn(rows, question), badAwnsers[question]))
         for awnser in validAwnsers:
@@ -263,8 +280,8 @@ def drawQuestionToAgeRelationship(vals, question, title, asPercentage=True):
 
     plt.suptitle(title)
     plt.title('Spørsmål: '+question)
-    plt.xlabel('Aldersgruppe')
-    plt.ylabel('Prosent av stemmer i respektive aldersgrupper' if asPercentage else 'Stemmer')
+    plt.xlabel(bucketLabel)
+    plt.ylabel('Prosent av stemmer i respektive grupper' if asPercentage else 'Stemmer')
     plt.xticks(index + (numValidAwnsers/2*bar_width), bucketLabels)
     plt.legend()
     plt.tight_layout()
@@ -284,21 +301,27 @@ def saveFigsToPdf():
             pdf.savefig( fig )
         pdf.close()
 
+def groupRowsByGender(rows):
+    return groupRowsByField(rows, 'Kjønn', ['Mann', 'Kvinne'], lambda val, buckets: val)
+
+
 def main():
     with open('data.csv', encoding="utf-8") as csvFile:
         vals = list(csv.DictReader(csvFile))
         vals = ageSanetization(vals)
         #refreshSanetizationFile(vals)
         
-        drawGenderDiagram(vals, woman, 'Kvinnelig aldersgruppe')
-        drawGenderDiagram(vals, man, 'Mannlig aldersgruppe')
-        drawGenderRelationDiagram(vals, 'Kjønnsfordeling i undersøkelsen')
-        drawConfirmationQuestionDiagram(
-            vals, 'Kontrollspørsmål: Svar "Nei"', 'Kontrollspørsmål hvor man er instruert til å svare nei')
+        #drawGenderDiagram(vals, woman, 'Kvinnelig aldersgruppe')
+        #drawGenderDiagram(vals, man, 'Mannlig aldersgruppe')
+        #drawGenderRelationDiagram(vals, 'Kjønnsfordeling i undersøkelsen')
+        #drawConfirmationQuestionDiagram(
+        #    vals, 'Kontrollspørsmål: Svar "Nei"', 'Kontrollspørsmål hvor man er instruert til å svare nei')
 
         badQuestions=['Har du noe på hjertet?', 'Tidsmerke', 'Alder']
-        drawQuestionToAgeRelationships(vals, badQuestions, 'Forskjellig respons fra forskjellige aldersgrupper')
+        #drawGroupsForAllQuestions(vals, groupRowsByAge(vals), 'Aldersgruppe', badQuestions, 'Forskjellig respons fra forskjellige aldersgrupper')
+        drawGroupsForAllQuestions(vals, groupRowsByGender(vals), 'Kjønnn', badQuestions, 'Forskjellig respons fra forskjellige kjønn')
 
+        
         #maleRows = filterRowsMatching(vals, 'Kjønn', 'Mann')
         #femaleRows = filterRowsMatching(vals, 'Kjønn', 'Kvinne')
         #for question in vals[0].keys():
