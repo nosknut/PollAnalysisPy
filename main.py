@@ -20,14 +20,14 @@ colorOrder = [
     'indigo',
 ]
 
-#ageRanges = {
+# ageRanges = {
 #    '0-18': {'range': range(0, 19), 'color': 'red'},
 #    '19-25': {'range': range(19, 26), 'color': blue},
 #    '26-30': {'range': range(26, 31), 'color': 'olive'},
 #    '31-40': {'range': range(31, 41), 'color': 'orange'},
 #    '41-50': {'range': range(41, 51), 'color': 'blueviolet'},
 #    '51-100': {'range': range(51, 101), 'color': 'brown'},
-#}
+# }
 
 ageRangeMap = {
     (0, 19): {'range': '0-18', 'color': 'red'},
@@ -39,6 +39,7 @@ ageRangeMap = {
 }
 
 ageRanges = RangeKeyDict(ageRangeMap)
+
 
 def getAgeRangeForGender(vals, gender):
     bucket = {}
@@ -62,7 +63,7 @@ def drawGenderDiagram(vals, gender, title):
     sizes = []
     colors = []
     for config in ageRangeMap.values():
-        r=config['range']
+        r = config['range']
         labels.append(r)
         sizes.append(bucket[r])
         colors.append(config['color'])
@@ -124,12 +125,15 @@ def filterRowsMatching(rows, key, value):
             vals.append(row)
     return vals
 
-dumpFile='ignoredAwnsers.json'
+
+dumpFile = 'ignoredAwnsers.json'
+
+
 def getBadAwnsers():
-    badAwnsers={}
+    badAwnsers = {}
     if Path(dumpFile).is_file():
         with open(dumpFile, "r", encoding="utf8") as f:
-            val=f.read()
+            val = f.read()
             if val:
                 badAwnsers = json.loads(val)
             f.close()
@@ -137,19 +141,20 @@ def getBadAwnsers():
 
 
 def sanetize(vals):
-    ignoredResponses=getBadAwnsers()
+    ignoredResponses = getBadAwnsers()
     for q in vals[0].keys():
         print('\n\n\n'+q)
         if not q in ignoredResponses:
-            ignoredResponses[q]=[]
+            ignoredResponses[q] = []
         c = countSame(extractColumn(vals, q))
         keys = list(c.keys())
         for i in range(len(keys)):
             k = keys[i]
             v = c[k]
-            removedText="(filtered): " if k in ignoredResponses[q] else ""
+            removedText = "(filtered): " if k in ignoredResponses[q] else ""
             print(removedText+str(i)+': '+str(v)+': '+str(k))
-        indexesToFilterOut = input('\nType a comma separated list with no spaces of the ones you want removed: ')
+        indexesToFilterOut = input(
+            '\nType a comma separated list with no spaces of the ones you want removed: ')
         if not indexesToFilterOut:
             print('None were removed')
             continue
@@ -161,12 +166,14 @@ def sanetize(vals):
                 f.close()
     return ignoredResponses
 
+
 def drawQuestionToAgeRelationships(vals, title):
     for q in vals[0].keys():
         drawQuestionToAgeRelationship(vals, q, title)
 
+
 def drawQuestionToAgeRelationship(vals, question, title):
-    ageBucket={}
+    ageBucket = {}
 
     for val in vals:
         if val['Alder'] in []:
@@ -212,15 +219,16 @@ def drawQuestionToAgeRelationship(vals, question, title):
 def main():
     with open('data.csv', encoding="utf-8") as csvFile:
         vals = list(csv.DictReader(csvFile))
-        #vals=sanetize(vals)#get rid of noisy and negligable awnsers
+        # vals=sanetize(vals)#get rid of noisy and negligable awnsers
         drawGenderDiagram(vals, woman, 'Kvinnelig aldersgruppe')
         drawGenderDiagram(vals, man, 'Mannlig aldersgruppe')
         drawGenderRelationDiagram(vals, 'Kjønnsfordeling i undersøkelsen')
-        #drawConfirmationQuestionDiagram(
+        # drawConfirmationQuestionDiagram(
         #    vals, 'Kontrollspørsmål: Svar "Nei"', 'Kontrollspørsmål hvor man er instruert til å svare nei')
         #maleRows = filterRowsMatching(vals, 'Kjønn', 'Mann')
         #femaleRows = filterRowsMatching(vals, 'Kjønn', 'Kvinne')
-        drawQuestionToAgeRelationship(vals, 'Alder', 'Forskjellig respons fra forskjellige aldersgrupper')
+        drawQuestionToAgeRelationship(
+            vals, 'Alder', 'Forskjellig respons fra forskjellige aldersgrupper')
         #drawQuestionToAgeRelationships(vals, 'Forskjellig respons fra forskjellige aldersgrupper')
         # for question in vals[0].keys():
         #    drawConfirmationQuestionDiagram(
@@ -228,5 +236,6 @@ def main():
         #    drawConfirmationQuestionDiagram(
         #        femaleRows, question, 'Hva kvinner svarte på '+question)
         plt.show()
+
 
 main()
