@@ -27,15 +27,6 @@ colorOrder = [
     'goldenrod',
 ]
 
-# ageRanges = {
-#    '0-18': {'range': range(0, 19), 'color': 'red'},
-#    '19-25': {'range': range(19, 26), 'color': blue},
-#    '26-30': {'range': range(26, 31), 'color': 'olive'},
-#    '31-40': {'range': range(31, 41), 'color': 'orange'},
-#    '41-50': {'range': range(41, 51), 'color': 'blueviolet'},
-#    '51-100': {'range': range(51, 101), 'color': 'brown'},
-# }
-
 ageRangeMap = {
     (0, 19): {'range': '0-18', 'color': 'red'},
     (19, 26): {'range': '19-25', 'color': blue},
@@ -49,7 +40,6 @@ ageRangeLabels=list(map(lambda b:b['range'], ageRangeMap.values()))
 
 ageRanges = RangeKeyDict(ageRangeMap)
 
-
 def getAgeRangeForGender(vals, gender):
     bucket = {}
     for config in ageRangeMap.values():
@@ -62,18 +52,13 @@ def getAgeRangeForGender(vals, gender):
                 bucket[ageRange] += 1
     return bucket
 
-
-def drawGenderDiagram(vals, gender, title):
-    bucket = getAgeRangeForGender(vals, gender)
+def drawPieFromBucket(title, bucket):
     labels = []
     sizes = []
-    colors = []
-    for config in ageRangeMap.values():
-        r = config['range']
-        labels.append(r)
-        sizes.append(bucket[r])
-        colors.append(config['color'])
-    drawPie(title, sizes, labels, colors)
+    for k, v in bucket.items():
+        labels.append(k)
+        sizes.append(v)
+    drawPie(title, sizes, labels)
 
 
 def countFieldMatchingValue(vals, field, value):
@@ -114,15 +99,9 @@ def countSame(values):
         bucket[value] += 1
     return bucket
 
-
-def drawConfirmationQuestionDiagram(vals, field, title):
-    labels = []
-    sizes = []
-    for k, v in countSame(extractColumn(vals, field)).items():
-        labels.append(k)
-        sizes.append(v)
-    drawPie(title, sizes, labels)
-
+# bucket{awnser: numvotes}
+def resultBucketForQuestion(rows, question):
+    return countSame(extractColumn(rows, question))
 
 def filterRowsMatching(rows, key, value):
     vals = []
@@ -190,23 +169,6 @@ def ageSanetization(vals):
         except KeyError:
             print('Found bad age: '+str(age))
     return sanetized
-
-
-#def groupRowsByAge(vals):
-#    ageBucket = {}
-#    for c in ageRangeMap.values():
-#        ageBucket[c['range']] = []
-#
-#    for val in vals:
-#        age = int(val['Alder'])
-#        r = ageRanges[age]['range']
-#        ageBucket[r].append(val)
-#
-#    for k, v in ageBucket.items():
-#        if len(v) == 0:
-#            ageBucket.pop(k, None)
-#
-#    return ageBucket
 
 def groupRowsByField(rows, field, buckets, bucketMatcher):
     bucket = {}
@@ -304,34 +266,25 @@ def saveFigsToPdf():
 def groupRowsByGender(rows):
     return groupRowsByField(rows, 'Kjønn', ['Mann', 'Kvinne'], lambda val, buckets: val)
 
+def drawPieForAllQuestions(rows, questionTitlePrefix):
+        for question in rows[0].keys():
+            drawPieFromBucket(questionTitlePrefix+question, resultBucketForQuestion(rows, question))
 
 def main():
     with open('data.csv', encoding="utf-8") as csvFile:
         vals = list(csv.DictReader(csvFile))
         vals = ageSanetization(vals)
         #refreshSanetizationFile(vals)
-        
-        #drawGenderDiagram(vals, woman, 'Kvinnelig aldersgruppe')
-        #drawGenderDiagram(vals, man, 'Mannlig aldersgruppe')
-        #drawGenderRelationDiagram(vals, 'Kjønnsfordeling i undersøkelsen')
-        #drawConfirmationQuestionDiagram(
-        #    vals, 'Kontrollspørsmål: Svar "Nei"', 'Kontrollspørsmål hvor man er instruert til å svare nei')
-
+        drawPieFromBucket('Kvinnelig aldersgruppe', getAgeRangeForGender(vals, woman))
+        drawPieFromBucket('Mannlig aldersgruppe', getAgeRangeForGender(vals, man))
+        drawGenderRelationDiagram(vals, 'Kjønnsfordeling i undersøkelsen')
+        drawPieFromBucket('Kontrollspørsmål hvor man er instruert til å svare nei', resultBucketForQuestion(
+            vals, 'Kontrollspørsmål: Svar "Nei"'))
         badQuestions=['Har du noe på hjertet?', 'Tidsmerke', 'Alder']
-        #drawGroupsForAllQuestions(vals, groupRowsByAge(vals), 'Aldersgruppe', badQuestions, 'Forskjellig respons fra forskjellige aldersgrupper')
+        drawGroupsForAllQuestions(vals, groupRowsByAge(vals), 'Aldersgruppe', badQuestions, 'Forskjellig respons fra forskjellige aldersgrupper')
         drawGroupsForAllQuestions(vals, groupRowsByGender(vals), 'Kjønnn', badQuestions, 'Forskjellig respons fra forskjellige kjønn')
-
-        
-        #maleRows = filterRowsMatching(vals, 'Kjønn', 'Mann')
-        #femaleRows = filterRowsMatching(vals, 'Kjønn', 'Kvinne')
-        #for question in vals[0].keys():
-        #    drawConfirmationQuestionDiagram(
-        #        maleRows, question, 'Hva menn svarte på '+question)
-        #    drawConfirmationQuestionDiagram(
-        #        femaleRows, question, 'Hva kvinner svarte på '+question)
-
+        drawPieForAllQuestions(filterRowsMatching(vals, 'Kjønn', 'Mann'), 'Hva menn svarte på ')
+        drawPieForAllQuestions(filterRowsMatching(vals, 'Kjønn', 'Kvinne'), 'Hva kvinner svarte på ')
         saveFigsToPdf()
         #plt.show()
-
-
 main()

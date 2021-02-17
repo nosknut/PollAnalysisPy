@@ -23,6 +23,17 @@ def groupAge(ageCountMap):
                 groupBucket[bucketName] += 1
     return groupBucket
 
+def drawGenderDiagram(vals, gender, title):
+    bucket = getAgeRangeForGender(vals, gender)
+    labels = []
+    sizes = []
+    colors = []
+    for config in ageRangeMap.values():
+        r = config['range']
+        labels.append(r)
+        sizes.append(bucket[r])
+        colors.append(config['color'])
+    drawPie(title, sizes, labels)
 
 def genderBuckets(vals):
     bucket = {}
