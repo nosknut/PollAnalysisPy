@@ -35,9 +35,10 @@ ageRangeMap = {
     (41, 51): {'range': '41-50', 'color': 'blueviolet'},
     (51, 101): {'range': '51-100', 'color': 'brown'},
 }
-
+    
+figSize=(12, 6)
+dumpFile = 'ignoredAwnsers.json'
 ageRangeLabels=list(map(lambda b:b['range'], ageRangeMap.values()))
-
 ageRanges = RangeKeyDict(ageRangeMap)
 
 def getAgeRangeForGender(vals, gender):
@@ -75,12 +76,11 @@ def drawGenderRelationDiagram(vals, title):
         countFieldMatchingValue(vals, 'Kjønn', man),
         countFieldMatchingValue(vals, 'Kjønn', woman)
     ]
-    colors = [blue, 'red']
-    drawPie(title, sizes, labels, colors)
+    drawPie(title, sizes, labels)
 
 
 def drawPie(title, sizes, labels, colors=colorOrder):
-    plt.figure(title)
+    plt.figure(title, figsize=figSize)
     plt.title(title)
     plt.axis('equal')
     plt.pie(sizes, labels=labels, autopct='%1.1f%%',
@@ -109,10 +109,6 @@ def filterRowsMatching(rows, key, value):
         if row[key] == value:
             vals.append(row)
     return vals
-
-
-dumpFile = 'ignoredAwnsers.json'
-
 
 def getBadAwnsers():
     badAwnsers = {}
@@ -207,7 +203,7 @@ def drawGroupedResults(unorderedRows, orderedRows, question, title, bucketLabel,
     totalVotesBucket=countTotalVotesInBucket(orderedRows)
     badAwnsers = getBadAwnsers()
     bucketLabels = orderedRows.keys()
-    plt.figure(question+'_'+title)
+    plt.figure(question+'_'+title, figsize=figSize)
     n_groups = len(bucketLabels)
     #fig, ax = plt.subplots()
     index = np.arange(n_groups)
@@ -285,6 +281,7 @@ def main():
         drawGroupsForAllQuestions(vals, groupRowsByGender(vals), 'Kjønnn', badQuestions, 'Forskjellig respons fra forskjellige kjønn')
         drawPieForAllQuestions(filterRowsMatching(vals, 'Kjønn', 'Mann'), 'Hva menn svarte på ')
         drawPieForAllQuestions(filterRowsMatching(vals, 'Kjønn', 'Kvinne'), 'Hva kvinner svarte på ')
+        drawPieForAllQuestions(vals, '')
         saveFigsToPdf()
         #plt.show()
 main()
